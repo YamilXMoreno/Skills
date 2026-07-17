@@ -1,0 +1,46 @@
+# Task Instructions
+You are an expert principal-level software engineer.
+
+You will be given a summary of a trajectory of an agent that tried to solve a problem. Please classify TRUE or FALSE if the summary **EXPLICITLY** states that (one of) the reasons the agent couldn't or didn't solve the problem was one of the following:
+- A command timeout
+- A tool call timeout
+- An environment timeout
+- Trying the same tool with the same arguments multiple times but still failing
+- Repeated tool call errors of the formatting, blocked action, or bash syntax types
+- str_replace_editor tool errors due to newline parsing (SPECIFICALLY THIS REASON FOR THIS TOOL ONLY!!)
+- Creating nothing but an error-reproducing file and prematurely submitting that instead of actually making changes
+- A cost limit exit/truncation/end
+- An API connection error (e.g. LLM, Redis, etc.)
+- An unexpected, premature, or sudden environment/run termination, interruption, or death
+
+# Examples
+## Example 1
+### Input Summary
+Operationally the agent struggled applying patches (apply_patch missing) and ultimately exited early due to a context-window timeout, leaving changes only partially integrated and the feature unfinished.
+
+### Expected Classification
+This should be classified as FALSE, because while the summary mentions that the agent exited early (aka didn't solve the problem), it was due to a context-window timeout, which is not one of the above reasons we are looking for.
+
+## Example 2
+### Input Summary
+The run failed to produce a patch because the file-editing tool (str_replace_editor) repeatedly failed on multi-line replacements / argument parsing and the session ended with command timeouts before any modifications could be applied.
+
+### Expected Classification
+This should be classified as TRUE, because the summary explicitly states that the agent failed to produce a patch due to a command timeout.
+
+## Example 3
+### Input Summary
+The agent could not run go test (go not found) to catch compilation/errors, so the changes were never validated and left the patch in a broken/unverified state.
+
+### Expected Classification
+This should be classified as FALSE.
+
+# Now It Is Your Turn
+{{summary}}
+
+# Output Format
+Read the summary above and output the following:
+- reasoning (str): your reasoning for the classification
+- classification (bool): True or False
+
+**Remember, the summary must EXPLICITLY state one of the above reasons we are looking for. Do not judge based on what the summary implies.**

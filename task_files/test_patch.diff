@@ -1,0 +1,55 @@
+diff --git a/awaitility-java8-test/src/test/java/org/awaitility/AwaitilityJava8Test.java b/awaitility-java8-test/src/test/java/org/awaitility/AwaitilityJava8Test.java
+index 2a2e6218..5547e210 100644
+--- a/awaitility-java8-test/src/test/java/org/awaitility/AwaitilityJava8Test.java
++++ b/awaitility-java8-test/src/test/java/org/awaitility/AwaitilityJava8Test.java
+@@ -30,11 +30,10 @@
+ 
+ import static java.util.concurrent.TimeUnit.MILLISECONDS;
+ import static java.util.concurrent.TimeUnit.SECONDS;
+-import static org.awaitility.Awaitility.await;
+-import static org.awaitility.Awaitility.matches;
+-import static org.awaitility.Awaitility.with;
++import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
++import static org.awaitility.Awaitility.*;
+ import static org.hamcrest.Matchers.*;
+-import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.*;
+ 
+ /**
+  * Tests for await().until(Runnable) using AssertionCondition.
+@@ -164,6 +163,20 @@ public void loggingIntermediaryHandlerLogsToSystemOut() {
+         await().until(matches(() -> stringEquals("test", "test")));
+     }
+ 
++    @SuppressWarnings("ConstantConditions")
++    @Test(timeout = 2000L)
++    public void includesCauseInStackTrace()  {
++        try {
++            await().atMost(200, MILLISECONDS).until(() -> {
++                assertNotNull("34");
++                assertNotNull(null);
++            });
++            fail("Should throw ConditionTimeoutException");
++        } catch (ConditionTimeoutException e) {
++            assertThat(e.getCause().getClass().getName()).isEqualTo(AssertionError.class.getName());
++        }
++    }
++
+     private void stringEquals(String first, String second) {
+         Assertions.assertThat(first).isEqualTo(second);
+     }
+diff --git a/awaitility-scala/src/test/scala/org/awaitility/scala/AwaitilitySupportTest.scala b/awaitility-scala/src/test/scala/org/awaitility/scala/AwaitilitySupportTest.scala
+index 5d551731..a2d4ef18 100755
+--- a/awaitility-scala/src/test/scala/org/awaitility/scala/AwaitilitySupportTest.scala
++++ b/awaitility-scala/src/test/scala/org/awaitility/scala/AwaitilitySupportTest.scala
+@@ -19,9 +19,9 @@ import java.util.concurrent.TimeUnit.MILLISECONDS
+ 
+ import org.awaitility.Awaitility._
+ import org.awaitility.core.ConditionTimeoutException
+-import org.hamcrest.CoreMatchers
+ import org.hamcrest.CoreMatchers.is
+ import org.hamcrest.Matchers.{containsString, endsWith, startsWith}
++import org.hamcrest.{CoreMatchers, Matchers}
+ import org.junit.Assert._
+ import org.junit._
+ 

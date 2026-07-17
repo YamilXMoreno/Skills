@@ -1,0 +1,24 @@
+# Local shell/runtime state
+.bash_logout
+.bashrc
+.profile
+.cache/
+.config/
+.docker/
+.local/
+
+# Claude account, session, and IDE state
+.claude.json
+.claude/.last-cleanup
+.claude/backups/
+.claude/ide/
+.claude/projects/
+.claude/sessions/
+.claude/settings.json
+
+# Generated Python artifacts
+**/__pycache__/
+*.py[cod]
+
+# Local evaluation outputs
+deliverables/

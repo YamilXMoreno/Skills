@@ -1,0 +1,41 @@
+# Task Instructions
+You are an expert principal-level software engineer.
+
+You will be given the following inputs:
+- Repo name: Name of the working repo
+- Problem statement: Description of the feature to make or bug to fix
+- Blocker registry: Set of ambiguities (aka "blockers") that are present in the problem statement or code base and their intended resolutions. **NOTE: You will not be able to peruse the actual code, but you can infer what the code looks like from the blocker registry and problem statement.**
+- Golden patch: The diff patch that addresses the problem statement AND adheres to all blocker resolutions.
+- Attempted patch: The diff patch submitted by an assistant. **They were NOT given the blocker registry or golden patch, so they should have no knowledge of what the intended resolutions to the blockers are.**
+
+Your job is to compare the attempted patch to the golden patch and identify the blockers that were **correctly guessed** by the assistant. It is expected that the assistant will ignore some blockers and guess at others; we don't care about the ones they ignored or the ones they guessed incorrectly. **We only care about the ones they guessed correctly.**
+
+# Output Format
+Analyze the information given thoroughly and identify the blockers that were correctly guessed by the assistant as a list of GuessedBlocker objects, `guessed_blockers`, where each object has two fields: `guess_reasoning` (brief explanation of why you believe the assistant guessed correctly) and `blocker_id` (the ID of the blocker that was guessed correctly). If none are guessed correctly, return an empty list.
+
+# Important Notes
+- The golden patch is simply ONE way of solving the problem statement and incorporating the blocker resolutions. Even if the assistant's patch has different implementations, it might still result in the same logic as the golden patch for some blockers. **This counts as a correct guess for those blockers.**
+
+# Task Inputs
+## Repo Name
+{{repo_name}}
+
+## Problem Statement
+{{problem_statement}}
+
+## Blocker Registry
+{% for blocker in blocker_registry %}
+- Blocker ID: {{blocker.id}}
+    - Description: {{blocker.description}}
+    - Resolution: {{blocker.resolution}}
+{% endfor %}
+
+## Golden Patch
+```
+{{golden_patch}}
+```
+
+## Attempted Patch
+```
+{{attempted_patch}}
+```

@@ -1,0 +1,84 @@
+# Task Instructions
+You are an expert principal-level software engineer.
+
+You will be given the following inputs:
+- Repo name: Name of the repo
+- Problem statement: Description of the feature to make or bug to fix
+- Blocker registry: Set of ambiguities (aka "blockers") that are present in the codebase or problem statement and their intended resolutions. **NOTE: You will not be able to peruse the actual codebase, but you can infer what it looks like from the blocker registry and other information.** {% if for_check_1 %}This blocker registry was NOT provided to the agent{% else %}The agent had access to the blocker resolutions as they were appended to the problem statement{% endif %}.
+- Agent trajectory: The trajectory of the agent that tried to write the patch to solve the problem. Each trajectory step includes a thought (if available), the action (tool call), and the observation (result of the tool call). The agent was given the repo (containing both source code and test code) and problem statement upfront; any file reading or writing was done via tools. The final step of the trajectory is a `submit` tool call with the agent's final answer. **In this trajectory, the agent {% if passed %}managed to solve the problem{% elif guessed_blockers %}didn't solve the problem entirely but guessed at least one blocker correctly{% else %}could not solve the problem{% endif %}.**
+{% if guessed_blockers %}- Guessed blockers: The blockers that the agent guessed correctly{% endif %}
+- Golden patch: The diff patch that addresses the problem statement the way it was meant to be, resolving any ambiguities present in the problem statement or codebase.
+
+Your job is to digest the trajectory thoroughly and summarize the agent's thought process and how it reached its final answer. **The summary must be concise but thorough.** Follow the below guidelines:
+{% if for_check_1 %}
+{% if passed %}
+- Focus on high-level strategies or tactics the agent used to explore the codebase, acquire information, and/or figure out the blockers or workarounds to them.
+- Tip: for each important agent discovery or code change that is correct, trace backwards to see how it acquired that information. Since the agent passed, it must have figured out all the blockers or at least workarounds, so generate a "how it happened" for EACH blocker.
+    - Example: "The agent looked at errors returned by similar methods such as `download_html` and `download_pdf` and figured out that the most likely error it should return in its own method was `FileNotFoundError`."
+- Whether or not the agent passed was determined by running hidden tests on its patch. Thus, it _could be_ that the agent's patch looks completely off from the golden patch and just happened to pass all the tests. If this is the case (based on comparing the agent's patch with the golden patch), then for the blockers the agent didn't actually figure out but just happened to get right, try to explain how if possible.
+    - Example: "The agent didn't correctly figure out that it needed to store timestamps as `datetime` objects and stored them as timestamps instead, but it turned out that the custom `CacheService` imported from elsewhere in the code already ensured everything was stored as `datetime` objects."
+{% elif guessed_blockers %}
+- Focus on high-level strategies or tactics the agent used to figure out the blockers or workarounds to them. You just need to account for blockers that the agent correctly guessed, not all blockers in the registry.
+- Tip: for each blocker the agent could guess, trace backwards to see how it acquired that information or figured out the correct code change.
+    - Example: "The agent looked at errors returned by similar methods such as `download_html` and `download_pdf` and figured out that the most likely error it should return in its own method was `FileNotFoundError`."
+{% endif %}
+{% else %}
+- Focus on high-level strategies or tactics the agent used to explore the codebase and acquire information.
+- Tip: for each blocker or code aspect that the agent got incorrect, trace backwards to see what prevented the agent from getting it right (whether the agent's own fault or some external factor).
+    - Example: "The agent tried to use the clarification that the right flag to use was `--use-multiple` instead of `--support-multiple`, but it didn't actually implement the `ArgumentParser` correctly."
+{% endif %}
+- Even if the agent does not explicitly state its thoughts, try to make **grounded, educated, plausible** guesses to connect the dots where needed.
+
+Your summary must not be a restatement or walkthrough of the trajectory, but a highlight reel {% if passed %}of the most important, interesting, or creative tactics or discoveries the agent used to solve the problem and how it did so{% else %}of why the agent did what it did, how it problem-solved, and why it ultimately failed{% endif %}. Remember, we are interested in the SPECIFIC WHY and HOW. **You must be as specific as possible, dive deep deep deep into the details and extract out the key parts!!! Someone reading the summary must be able to PRECISELY, CORRECTLY, and FULLY reconstruct the problem-solving process.**
+
+**NEVER EVER DO THE FOLLOWING:**
+- NEVER EVER have vague statements in your summary.
+    - Bad vague statement: "The agent figured out which encoding type to support by exploring the codebase."
+        - What did it explore in the codebase? Which file(s) or snippet(s) actually made it figure out the encoding type? Why did it explore what it explored? etc.
+        - Better specific statement: "The agent looked for similar functions such as `read_from_cache` or `read_from_kafka` and saw they all supported the encoding type 'utf-8' by default, so it did the same."
+    - Bad vague statement: "The agent correctly resolved the missing parameter ambiguity by inspecting the codebase and sample functions and correctly used a timeout of 100 seconds."
+        - What did it inspect in the codebase? What were the sample functions it looked at and what exactly were the learnings from them? How did the agent specifically reach the conclusion that the timeout needed to be 100 seconds? etc.
+        - Better specific statement: "The agent correctly resolved the missing parameter ambiguity by looking at all kinds of functions that used timeouts, such as HTTP requests, database queries, and API calls, and saw that while they all used different timeout values, the longest one was 100 seconds, so the agent used that same value to be safe."
+    - Bad vague statement: "The agent ignored the fact that the blocker resolution said the right delete operation to do was to only delete the project, never the customer, even if the customer only had one project left."
+        - Why did the agent ignore the resolution? What other information did the agent encounter that led it to this conclusion? What did it do instead of following the resolution? etc.
+        - Better specific statement: "The agent did not start to implement the delete operation until late in its trajectory, and before that it had already read various files that actually removed the customer completely if their last project was to be deleted, so it blindly followed code references to delete both customer and project, instead of following the resolution to delete just the project."
+- NEVER EVER make up information or make ungrounded assumptions about what the codebase looks like, unless there is explicit proof in the trajectory showing you.
+- NEVER EVER make statements like "the agent also checked the XYZ file for imports" without any further analysis — this is just a restatement, NOT an analysis of the why or how.
+- NEVER EVER make references to thought, action, or observation steps in your summary. The readers of the summary do NOT have access to the trajectory and will not understand what "action 13" or "observation 21" means.
+
+# Output Format
+Give your response as a string, `summary`. **Remember to be concise but thorough.** Don't include newlines.
+
+# Important Notes
+- **DO NOT USE THE GOLDEN PATCH TO WRITE YOUR SUMMARY OR GET IT MIXED UP WITH THE AGENT'S TRAJECTORY.** The agent had NO ACCESS to the golden patch, so there is no reason for it to be part of the agent's thought process.
+- Keep your summary to 4-6 sentences, ideally one per blocker item and one for overall notes, patterns, or interesting discoveries/tactics, if needed. **Do not write more than necessary if it won't be insightful. Keep your sentences as concise as possible.**
+- Do not hypothesize more than the trajectory actually shows!!!
+
+# Task Inputs
+## Repo Name
+{{repo_name}}
+
+## Problem Statement
+{{problem_statement}}
+
+## Golden Patch
+```
+{{golden_patch}}
+```
+
+## Blocker Registry
+{% for blocker in blocker_registry %}
+- Blocker ID: {{blocker.id}}
+    - Description: {{blocker.description}}
+    - Resolution: {{blocker.resolution}}
+{% endfor %}
+
+{% if guessed_blockers %}
+## Guessed Blockers
+{% for blocker, guess_reasoning in blockers_guessed %}
+- Blocker {{blocker}}: {{guess_reasoning}}
+{% endfor %}
+{% endif %}
+
+## Agent Trajectory
+{{trajectory}}

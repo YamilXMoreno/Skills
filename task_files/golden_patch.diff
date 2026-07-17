@@ -1,0 +1,216 @@
+diff --git a/awaitility/src/main/java/org/awaitility/core/AbstractHamcrestCondition.java b/awaitility/src/main/java/org/awaitility/core/AbstractHamcrestCondition.java
+index db694ffb..5edcc363 100644
+--- a/awaitility/src/main/java/org/awaitility/core/AbstractHamcrestCondition.java
++++ b/awaitility/src/main/java/org/awaitility/core/AbstractHamcrestCondition.java
+@@ -46,7 +46,7 @@ public AbstractHamcrestCondition(final Callable<T> supplier, final Matcher<? sup
+ 
+         conditionEvaluationHandler = new ConditionEvaluationHandler<T>(matcher, settings);
+         final ConditionEvaluator callable = new ConditionEvaluator() {
+-            public boolean eval(Duration pollInterval) throws Exception{
++            public ConditionEvaluationResult eval(Duration pollInterval) throws Exception{
+                 lastResult = supplier.call();
+                 boolean matches = matcher.matches(lastResult);
+                 if (matches) {
+@@ -54,7 +54,7 @@ public boolean eval(Duration pollInterval) throws Exception{
+                 } else {
+                     conditionEvaluationHandler.handleConditionResultMismatch(getMismatchMessage(supplier, matcher), lastResult, pollInterval);
+                 }
+-                return matches;
++                return new ConditionEvaluationResult(matches);
+ 
+             }
+         };
+diff --git a/awaitility/src/main/java/org/awaitility/core/AssertionCondition.java b/awaitility/src/main/java/org/awaitility/core/AssertionCondition.java
+index 2039a6d3..09f179e0 100644
+--- a/awaitility/src/main/java/org/awaitility/core/AssertionCondition.java
++++ b/awaitility/src/main/java/org/awaitility/core/AssertionCondition.java
+@@ -50,15 +50,15 @@ public AssertionCondition(final Runnable supplier, final ConditionSettings setti
+         conditionEvaluationHandler = new ConditionEvaluationHandler<Object>(null, settings);
+ 
+         final ConditionEvaluator callable = new ConditionEvaluator() {
+-            public boolean eval(Duration pollInterval) throws Exception {
++            public ConditionEvaluationResult eval(Duration pollInterval) throws Exception {
+                 try {
+                     supplier.run();
+                     conditionEvaluationHandler.handleConditionResultMatch(getMatchMessage(supplier, settings.getAlias()), null, pollInterval);
+-                    return true;
++                    return new ConditionEvaluationResult(true);
+                 } catch (AssertionError e) {
+                     lastExceptionMessage = e.getMessage();
+                     conditionEvaluationHandler.handleConditionResultMismatch(getMismatchMessage(supplier, lastExceptionMessage, settings.getAlias()), null, pollInterval);
+-                    return false;
++                    return new ConditionEvaluationResult(false, e);
+                 }
+             }
+         };
+diff --git a/awaitility/src/main/java/org/awaitility/core/CallableCondition.java b/awaitility/src/main/java/org/awaitility/core/CallableCondition.java
+index 52ce34e0..46382ae4 100644
+--- a/awaitility/src/main/java/org/awaitility/core/CallableCondition.java
++++ b/awaitility/src/main/java/org/awaitility/core/CallableCondition.java
+@@ -96,7 +96,7 @@ private static class ConditionEvaluationWrapper implements ConditionEvaluator {
+             this.conditionEvaluationHandler = conditionEvaluationHandler;
+         }
+ 
+-        public boolean eval(Duration pollInterval) throws Exception {
++        public ConditionEvaluationResult eval(Duration pollInterval) throws Exception {
+             boolean conditionFulfilled = matcher.call();
+             if (conditionFulfilled) {
+                 conditionEvaluationHandler.handleConditionResultMatch(getMatchMessage(matcher, settings.getAlias()), true, pollInterval);
+@@ -104,7 +104,7 @@ public boolean eval(Duration pollInterval) throws Exception {
+                 conditionEvaluationHandler.handleConditionResultMismatch(getMismatchMessage(matcher, settings.getAlias()), false, pollInterval);
+ 
+             }
+-            return conditionFulfilled;
++            return new ConditionEvaluationResult(conditionFulfilled);
+         }
+ 
+         private String getMatchMessage(Callable<Boolean> matcher, String conditionAlias) {
+diff --git a/awaitility/src/main/java/org/awaitility/core/ConditionAwaiter.java b/awaitility/src/main/java/org/awaitility/core/ConditionAwaiter.java
+index d2216b54..34da938a 100755
+--- a/awaitility/src/main/java/org/awaitility/core/ConditionAwaiter.java
++++ b/awaitility/src/main/java/org/awaitility/core/ConditionAwaiter.java
+@@ -28,6 +28,7 @@ abstract class ConditionAwaiter implements UncaughtExceptionHandler {
+     private final CountDownLatch latch;
+     private final ConditionEvaluator conditionEvaluator;
+     private Throwable throwable = null;
++    private Throwable cause = null;
+     private final ConditionSettings conditionSettings;
+ 
+     /**
+@@ -100,19 +101,24 @@ public <T> void await(final ConditionEvaluationHandler<T> conditionEvaluationHan
+                         message = String.format("%s within %s %s.", getTimeoutMessage(), maxTimeout, maxWaitTimeLowerCase);
+                     }
+ 
+-                    ConditionTimeoutException e = new ConditionTimeoutException(message);
++                    final ConditionTimeoutException e;
+ 
+                     // Not all systems support deadlock detection so ignore if ThreadMXBean & ManagementFactory is not in classpath
+                     if (existInCP("java.lang.management.ThreadMXBean") && existInCP("java.lang.management.ManagementFactory")) {
+                         java.lang.management.ThreadMXBean bean = java.lang.management.ManagementFactory.getThreadMXBean();
++                        Throwable cause = this.cause;
+                         try {
+                             long[] threadIds = bean.findDeadlockedThreads();
+-                            if (threadIds != null)
+-                                e.initCause(new DeadlockException(threadIds));
++                            if (threadIds != null) {
++                                cause = new DeadlockException(threadIds);
++                            }
+                         } catch (UnsupportedOperationException ignored) {
+                             // findDeadLockedThreads() not supported on this VM,
+                             // don't init cause and move on.
+                         }
++                        e = new ConditionTimeoutException(message, cause);
++                    } else {
++                        e = new ConditionTimeoutException(message, this.cause);
+                     }
+ 
+                     throw e;
+@@ -216,8 +222,11 @@ public ConditionPoller(Duration delayed) {
+ 
+         public void run() {
+             try {
+-                if (conditionEvaluator.eval(delayed)) {
++                ConditionEvaluationResult result = conditionEvaluator.eval(delayed);
++                if (result.isSuccessful()) {
+                     latch.countDown();
++                } else if (result.hasThrowable()) {
++                    cause = result.getThrowable();
+                 }
+             } catch (Exception e) {
+                 if (!conditionSettings.shouldExceptionBeIgnored(e)) {
+diff --git a/awaitility/src/main/java/org/awaitility/core/ConditionEvaluationResult.java b/awaitility/src/main/java/org/awaitility/core/ConditionEvaluationResult.java
+new file mode 100755
+index 00000000..dd64101a
+--- /dev/null
++++ b/awaitility/src/main/java/org/awaitility/core/ConditionEvaluationResult.java
+@@ -0,0 +1,48 @@
++/*
++ * Copyright 2017 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.awaitility.core;
++
++import org.awaitility.Duration;
++
++class ConditionEvaluationResult {
++    private Throwable throwable;
++    private boolean successful;
++
++     ConditionEvaluationResult(boolean successful) {
++        this(successful, null);
++    }
++
++    ConditionEvaluationResult(boolean successful, Throwable throwable) {
++        this.successful = successful;
++        this.throwable = throwable;
++    }
++
++    boolean isSuccessful() {
++        return successful;
++    }
++
++    boolean isError() {
++        return !isSuccessful();
++    }
++
++    Throwable getThrowable() {
++        return throwable;
++    }
++
++    boolean hasThrowable() {
++         return throwable != null;
++    }
++}
+diff --git a/awaitility/src/main/java/org/awaitility/core/ConditionEvaluator.java b/awaitility/src/main/java/org/awaitility/core/ConditionEvaluator.java
+index 115e6743..42d03f9e 100755
+--- a/awaitility/src/main/java/org/awaitility/core/ConditionEvaluator.java
++++ b/awaitility/src/main/java/org/awaitility/core/ConditionEvaluator.java
+@@ -22,5 +22,5 @@ interface ConditionEvaluator {
+     /**
+      * @param pollInterval The poll interval for the for this evaluation round
+      */
+-    boolean eval(Duration pollInterval) throws Exception;
++    ConditionEvaluationResult eval(Duration pollInterval) throws Exception;
+ }
+diff --git a/awaitility/src/main/java/org/awaitility/core/ConditionTimeoutException.java b/awaitility/src/main/java/org/awaitility/core/ConditionTimeoutException.java
+index f57416ff..59fab646 100644
+--- a/awaitility/src/main/java/org/awaitility/core/ConditionTimeoutException.java
++++ b/awaitility/src/main/java/org/awaitility/core/ConditionTimeoutException.java
+@@ -30,4 +30,14 @@ public class ConditionTimeoutException extends RuntimeException {
+     public ConditionTimeoutException(String message) {
+         super(message);
+     }
++
++    /**
++     * <p>Constructor for ConditionTimeoutException.</p>
++     *
++     * @param message A description of why the timeout occurred.
++     * @param throwable The cause
++     */
++    public ConditionTimeoutException(String message, Throwable throwable) {
++        super(message, throwable);
++    }
+ }
+diff --git a/changelog.txt b/changelog.txt
+index 26c830e2..f45e4b43 100644
+--- a/changelog.txt
++++ b/changelog.txt
+@@ -11,6 +11,7 @@ Changelog next version
+ * Bumped property versions, plugin versions, dependency versions (thanks to Andy Glick for pull request) (issue 21)
+ * Waiting for the condition awaiter thread to shutdown after "shutdownNow" in order to avoid having a thread left running after a test (issue 69)
+ * Catching throwable instead of exception in poll-scheduling thread
++* Added root cause to ConditionTimeoutException when applicable so that one can more easily distinguish find where an error occurred (issue 67)
+ 
+ Changelog 2.0.0 (2016-06-17)
+ ----------------------------

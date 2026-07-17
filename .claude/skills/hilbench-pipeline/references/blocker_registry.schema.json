@@ -1,0 +1,16 @@
+{
+  "blockers": [
+    {
+      "id": "snake_case_descriptive_id",
+      "area_of_obstruction": ["Problem statement", "Requirements", "Interfaces", "CodeBase"],
+      "type_of_obstruction": "Missing Parameters | Ambiguous requirements | Contradictory requirements",
+      "description": "Standalone explanation of WHY this blocks correct implementation. No leak, no self-reference, no other blocker ids. <= 2-3 sentences.",
+      "resolution": "The exact answer (values/format/case/spacing). Include Example and Counterexample when helpful. Resolves ONLY this blocker; no hidden parameters that answer other blockers.",
+      "trigger_questions": [
+        "3 to 5 varied, standalone, single-decision questions (MAX 5).",
+        "Vary phrasing: What / How / Should I / Which / Is it.",
+        "Each must be relevant only to this blocker's decision space."
+      ]
+    }
+  ]
+}

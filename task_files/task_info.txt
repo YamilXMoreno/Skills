@@ -1,0 +1,45 @@
+Instance ID: instance_awaitility__awaitility-40f9a31e469e86872ec00b3913b6359ba33463f1
+
+Repository: awaitility/awaitility
+Repository URL: https://github.com/awaitility/awaitility
+Coding Language: Java
+License: apache-2.0
+Docker Pull Command: https://scale-cds-public-us-west-2.s3.amazonaws.com/65cbc42b32ffab95dd54b864/CjIUG8PbY75-RRs
+Commit URL: https://github.com/awaitility/awaitility/commit/40f9a31e469e86872ec00b3913b6359ba33463f1
+Base Commit Hash: 7c0263efa52fda197aa301efecbfcdad70fa4a84
+Narrow Tests: Yes
+
+Blocker Distribution:
+Please generate the following blockers:
+- 3 missing parameter blockers
+- 1 ambiguous requirements blocker
+- 1 contradictory requirements blocker
+
+Problem Statement:
+# Title: `ConditionTimeoutException` doesn't expose the underlying cause of evaluation failures.
+
+## Description:
+When a condition fails due to an internal error rather than a true timeout, `ConditionTimeoutException` omits this cause, preventing users from identifying where the failure originated.
+
+Requirements:
+- When a condition fails due to an `AssertionError` during its evaluation, and the timeout expires, the resulting `ConditionTimeoutException` should expose that error as its root cause.
+
+- The `AssertionError` exposed as the root cause of `ConditionTimeoutException` should preserve its original type, allowing callers to identify the underlying failure.
+
+Public Interfaces:
+- Path: `awaitility/src/main/java/org/awaitility/core/`
+- Name: `ConditionEvaluationResult.java`
+- Type: File
+- Input: NA
+- Output: NA
+- Description: Encapsulates condition evaluation results with success status and optional throwable, enabling distinction between successful, failed without exception, and failed with exception outcomes.
+
+- Path: awaitility/src/main/java/org/awaitility/core/ConditionTimeoutException.java
+- Name: `ConditionTimeoutException`
+- Type: Method
+- Input: `String message, Throwable throwable`
+- Output: `None`
+- Description: Constructs a `ConditionTimeoutException` with a message and an optional cause. The cause represents the exception captured during condition evaluation.
+
+Relevant Tests:
+["org.awaitility.AwaitilityJava8Test#includesCauseInStackTrace"]
